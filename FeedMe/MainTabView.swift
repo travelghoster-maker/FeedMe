@@ -1,12 +1,6 @@
 import SwiftUI
 
-// MARK: - AI Input Mode
-
-enum AIInputMode {
-    case none       // collapsed — just the tab bar
-    case text       // expanded text input
-    case voice      // long-press voice bar
-}
+enum AIInputMode { case none, text, voice }
 
 struct MainTabView: View {
     @EnvironmentObject var state: AppState
@@ -20,276 +14,266 @@ struct MainTabView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             // Pages
-            pageContent
-                .ignoresSafeArea(edges: .bottom)
+            Group {
+                switch state.tab {
+                case 0: HomeView()
+                case 2: SubscriptionsView()
+                default: HomeView()
+                }
+            }
+            .ignoresSafeArea(edges: .bottom)
 
-            // Toast
-            toastBanner
+            // Tap outside to dismiss
+            if aiMode != .none {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            aiMode = .none
+                            inputText = ""
+                            inputFocused = false
+                        }
+                    }
+                    .zIndex(1)
+            }
 
-            // Liquid Glass bottom bar — morphs based on aiMode
-            bottomBar
+            // Bottom UI
+            VStack(spacing: 0) {
+                // Toast
+                if !state.toast.isEmpty {
+                    Text(state.toast)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color.black.opacity(0.82), in: Capsule())
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .padding(.bottom, 10)
+                }
+
+                // Bottom bar
+                switch aiMode {
+                case .none:  tabBar
+                case .text:  textBar
+                case .voice: voiceBar
+                }
+            }
+            .animation(.spring(response: 0.4, dampingFraction: 0.78), value: aiMode)
+            .animation(.spring(response: 0.3), value: state.toast)
+            .zIndex(10)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 32)
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.78), value: aiMode)
-        .animation(.spring(response: 0.3), value: state.toast)
     }
 
-    // MARK: - Page Content
+    // MARK: - Tab Bar (Dot-style: "+ 首页  ✦  订阅  🎤")
 
-    @ViewBuilder
-    private var pageContent: some View {
-        switch state.tab {
-        case 0: HomeView()
-        case 2: SubscriptionsView()
-        default: HomeView()
-        }
-    }
-
-    // MARK: - Toast
-
-    @ViewBuilder
-    private var toastBanner: some View {
-        if !state.toast.isEmpty {
-            Text(state.toast)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.white)
-                .padding(.horizontal, 22)
-                .padding(.vertical, 11)
-                .background(.ultraThinMaterial, in: Capsule())
-                .background(Color(hex: "#1A1A2E").opacity(0.82), in: Capsule())
-                .shadow(color: .black.opacity(0.18), radius: 20, x: 0, y: 6)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .padding(.bottom, 130)
-                .zIndex(100)
-        }
-    }
-
-    // MARK: - Bottom Bar (morphing)
-
-    @ViewBuilder
-    private var bottomBar: some View {
-        switch aiMode {
-        case .none:    tabBarCapsule
-        case .text:    textInputCapsule
-        case .voice:   voiceCapsule
-        }
-    }
-
-    // ── 1. Normal Tab Bar ─────────────────────────────────────────
-
-    private var tabBarCapsule: some View {
+    private var tabBar: some View {
         HStack(spacing: 0) {
             // Home
-            TabBtn(sfSymbol: "house.fill", label: "首页", active: state.tab == 0) {
-                state.tab = 0
+            tabBtn(icon: "house", label: "首页", active: state.tab == 0) {
+                withAnimation(.spring(response: 0.3)) { state.tab = 0 }
             }
 
-            // AI button — center
-            aiOrb
+            // AI orb — center, slightly larger
+            aiOrbBtn
+                .frame(maxWidth: .infinity)
 
             // Subscriptions
-            TabBtn(sfSymbol: "bookmark.fill", label: "订阅", active: state.tab == 2) {
-                state.tab = 2
+            tabBtn(icon: "bookmark", label: "订阅", active: state.tab == 2) {
+                withAnimation(.spring(response: 0.3)) { state.tab = 2 }
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 8)
         .padding(.vertical, 10)
-        .liquidGlassCapsule()
-        .padding(.horizontal, 28)
-        .padding(.bottom, 32)
-        .transition(.scale(scale: 0.92).combined(with: .opacity))
+        .background {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(Color.black.opacity(0.88))
+                .shadow(color: .black.opacity(0.25), radius: 24, x: 0, y: 8)
+        }
+        .transition(.scale(scale: 0.95).combined(with: .opacity))
     }
 
-    // AI orb — tap = text input, long press = voice
-    private var aiOrb: some View {
-        Button { } label: {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: "#7C5CFC"), Color(hex: "#A78BFA"), Color(hex: "#C4B5FD")],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 52, height: 52)
-                    .shadow(color: Color(hex: "#7C5CFC").opacity(0.55), radius: 16, x: 0, y: 6)
-                    .overlay(
-                        Circle()
-                            .strokeBorder(Color.white.opacity(0.4), lineWidth: 1.5)
-                    )
-                Image(systemName: "sparkles")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(.white)
+    private func tabBtn(icon: String, label: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Image(systemName: active ? "\(icon).fill" : icon)
+                    .font(.system(size: 18, weight: active ? .semibold : .regular))
+                    .foregroundColor(active ? .white : .white.opacity(0.4))
+                Text(label)
+                    .font(.system(size: 10, weight: active ? .semibold : .regular))
+                    .foregroundColor(active ? .white : .white.opacity(0.4))
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
         }
         .buttonStyle(.plain)
-        .frame(maxWidth: .infinity)
+    }
+
+    private var aiOrbBtn: some View {
+        ZStack {
+            // Glow ring
+            Circle()
+                .fill(Color(hex: "#7C5CFC").opacity(0.3))
+                .frame(width: 58, height: 58)
+                .blur(radius: 8)
+
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: "#A78BFA"), Color(hex: "#7C5CFC"), Color(hex: "#6D28D9")],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 50, height: 50)
+                .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 1))
+
+            Image(systemName: "sparkles")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(.white)
+        }
         .simultaneousGesture(
             TapGesture().onEnded {
-                withAnimation(.spring(response: 0.42, dampingFraction: 0.75)) {
-                    aiMode = .text
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    inputFocused = true
-                }
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.75)) { aiMode = .text }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { inputFocused = true }
             }
         )
         .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.5).onEnded { _ in
-                let impact = UIImpactFeedbackGenerator(style: .medium)
-                impact.impactOccurred()
-                withAnimation(.spring(response: 0.42, dampingFraction: 0.75)) {
-                    aiMode = .voice
-                }
+            LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.75)) { aiMode = .voice }
             }
         )
     }
 
-    // ── 2. Text Input Capsule ─────────────────────────────────────
+    // MARK: - Text Input Bar (Dot-style)
 
-    private var textInputCapsule: some View {
+    private var textBar: some View {
         HStack(spacing: 12) {
-            // Dismiss
+            // Dismiss X
             Button {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
-                    aiMode = .none
-                    inputText = ""
-                    inputFocused = false
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    aiMode = .none; inputText = ""; inputFocused = false
                 }
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color(hex: "#ADB5BD"))
-                    .frame(width: 36, height: 36)
-                    .background(Color(hex: "#F0EEFF"), in: Circle())
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.black.opacity(0.4))
+                    .frame(width: 32, height: 32)
+                    .background(Color.black.opacity(0.06), in: Circle())
             }
             .buttonStyle(.plain)
 
-            // Text field
+            // Field
             ZStack(alignment: .leading) {
                 if inputText.isEmpty {
-                    Text("告诉我你想订阅什么…")
-                        .font(.system(size: 15))
-                        .foregroundColor(Color(hex: "#ADB5BD"))
+                    Text("想订阅什么？")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundColor(.black.opacity(0.3))
                 }
                 TextField("", text: $inputText, axis: .vertical)
-                    .font(.system(size: 15))
-                    .foregroundColor(Color(hex: "#1A1A2E"))
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(.black.opacity(0.88))
                     .focused($inputFocused)
-                    .lineLimit(1...4)
+                    .lineLimit(1...3)
                     .submitLabel(.send)
                     .onSubmit { sendMessage() }
             }
 
-            // Send / loading
+            // Send
             Button { sendMessage() } label: {
                 ZStack {
                     Circle()
-                        .fill(
-                            inputText.isEmpty
-                            ? Color(hex: "#E9ECEF")
-                            : LinearGradient(
-                                colors: [Color(hex: "#7C5CFC"), Color(hex: "#A78BFA")],
-                                startPoint: .topLeading, endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 36, height: 36)
+                        .fill(inputText.isEmpty
+                              ? Color.black.opacity(0.08)
+                              : Color.black.opacity(0.88))
+                        .frame(width: 34, height: 34)
                     if isProcessing {
-                        ProgressView()
-                            .tint(.white)
-                            .scaleEffect(0.75)
+                        ProgressView().tint(.white).scaleEffect(0.7)
                     } else {
                         Image(systemName: "arrow.up")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(inputText.isEmpty ? Color(hex: "#ADB5BD") : .white)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(inputText.isEmpty ? .black.opacity(0.3) : .white)
                     }
                 }
             }
             .buttonStyle(.plain)
             .disabled(inputText.isEmpty || isProcessing)
-            .shadow(color: inputText.isEmpty ? .clear : Color(hex: "#7C5CFC").opacity(0.4),
-                    radius: 8, x: 0, y: 3)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .liquidGlassCapsule()
-        .padding(.horizontal, 16)
-        .padding(.bottom, 32)
-        .transition(.scale(scale: 0.92).combined(with: .opacity))
+        .background {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(Color(hex: "#F5F4F0"))
+                .shadow(color: .black.opacity(0.12), radius: 20, x: 0, y: 6)
+        }
+        .transition(.scale(scale: 0.95).combined(with: .opacity))
     }
 
-    // ── 3. Voice Capsule ─────────────────────────────────────────
+    // MARK: - Voice Bar
 
-    private var voiceCapsule: some View {
+    private var voiceBar: some View {
         HStack(spacing: 16) {
-            // Cancel
             Button {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
-                    aiMode = .none
-                }
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { aiMode = .none }
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color(hex: "#ADB5BD"))
-                    .frame(width: 36, height: 36)
-                    .background(Color(hex: "#F0EEFF"), in: Circle())
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.black.opacity(0.4))
+                    .frame(width: 32, height: 32)
+                    .background(Color.black.opacity(0.06), in: Circle())
             }
             .buttonStyle(.plain)
 
-            // Waveform visualizer (animated placeholder)
+            // Waveform
             WaveformView()
-                .frame(height: 36)
+                .frame(height: 32)
 
-            // Done / send voice
+            // Mic button
             Button {
-                // TODO: wire real speech-to-text
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     aiMode = .none
                     state.showToast("语音功能即将上线 ✨")
                 }
             } label: {
                 ZStack {
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(hex: "#E17055"), Color(hex: "#FF7675")],
-                                startPoint: .topLeading, endPoint: .bottomTrailing
-                            )
-                        )
+                        .fill(Color.black.opacity(0.88))
                         .frame(width: 44, height: 44)
-                        .shadow(color: Color(hex: "#E17055").opacity(0.5), radius: 12, x: 0, y: 4)
                     Image(systemName: "mic.fill")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(.white)
                 }
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .liquidGlassCapsule()
         .padding(.horizontal, 16)
-        .padding(.bottom, 32)
-        .transition(.scale(scale: 0.92).combined(with: .opacity))
+        .padding(.vertical, 14)
+        .background {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(Color(hex: "#F5F4F0"))
+                .shadow(color: .black.opacity(0.12), radius: 20, x: 0, y: 6)
+        }
+        .transition(.scale(scale: 0.95).combined(with: .opacity))
     }
 
-    // MARK: - Send
+    // MARK: - Send logic
 
     private func sendMessage() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-
         isProcessing = true
         inputText = ""
+        inputFocused = false
 
-        // Intent matching → add subscription
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
             if let template = AppData.parseIntent(text) {
                 state.addSub(template)
                 withAnimation(.spring(response: 0.4)) { aiMode = .none }
                 state.tab = 0
             } else {
-                state.showToast("暂时没认出这个类型，试试「小众App」或「深圳活动」")
+                state.showToast("试试「小众App」「深圳活动」「播客」")
                 withAnimation(.spring(response: 0.4)) { aiMode = .none }
             }
             isProcessing = false
@@ -297,112 +281,30 @@ struct MainTabView: View {
     }
 }
 
-// MARK: - Tab Button
-
-private struct TabBtn: View {
-    let sfSymbol: String
-    let label: String
-    let active: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                ZStack {
-                    if active {
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(hex: "#7C5CFC"), Color(hex: "#A78BFA")],
-                                    startPoint: .topLeading, endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 48, height: 28)
-                            .shadow(color: Color(hex: "#7C5CFC").opacity(0.45), radius: 8, x: 0, y: 3)
-                    }
-                    Image(systemName: sfSymbol)
-                        .font(.system(size: 15, weight: active ? .semibold : .regular))
-                        .foregroundColor(active ? .white : Color(hex: "#ADB5BD"))
-                        .scaleEffect(active ? 1.08 : 1.0)
-                }
-                .frame(width: 48, height: 28)
-                Text(label)
-                    .font(.system(size: 10, weight: active ? .bold : .medium))
-                    .foregroundColor(active ? Color(hex: "#7C5CFC") : Color(hex: "#ADB5BD"))
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Waveform (animated)
+// MARK: - Waveform
 
 struct WaveformView: View {
-    @State private var phase: CGFloat = 0
+    @State private var animating = false
 
     var body: some View {
-        GeometryReader { geo in
-            HStack(spacing: 3) {
-                ForEach(0..<18, id: \.self) { i in
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(hex: "#7C5CFC"), Color(hex: "#A78BFA")],
-                                startPoint: .bottom, endPoint: .top
-                            )
-                        )
-                        .frame(width: 3)
-                        .frame(height: barHeight(i: i, geo: geo))
-                        .animation(
-                            .easeInOut(duration: 0.5)
-                            .repeatForever()
-                            .delay(Double(i) * 0.06),
-                            value: phase
-                        )
-                }
+        HStack(spacing: 3) {
+            ForEach(0..<16, id: \.self) { i in
+                Capsule()
+                    .fill(Color.black.opacity(0.5))
+                    .frame(width: 2.5)
+                    .frame(height: animating
+                           ? CGFloat.random(in: 6...28)
+                           : CGFloat([6, 14, 20, 10, 24, 8, 18, 12].randomElement()!))
+                    .animation(
+                        .easeInOut(duration: Double.random(in: 0.3...0.6))
+                        .repeatForever(autoreverses: true)
+                        .delay(Double(i) * 0.05),
+                        value: animating
+                    )
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
-        .onAppear { phase = 1 }
-    }
-
-    private func barHeight(i: Int, geo: GeometryProxy) -> CGFloat {
-        let base: CGFloat = geo.size.height
-        let wave = sin(CGFloat(i) * 0.7 + phase * .pi * 2)
-        return base * (0.25 + 0.55 * abs(wave))
-    }
-}
-
-// MARK: - Liquid Glass modifier
-
-extension View {
-    func liquidGlassCapsule() -> some View {
-        self.background {
-            Capsule()
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Capsule().fill(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.6), Color.white.opacity(0.2), Color(hex: "#7C5CFC").opacity(0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                )
-                .overlay(
-                    Capsule().strokeBorder(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.9), Color.white.opacity(0.2)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-                )
-                .shadow(color: Color(hex: "#7C5CFC").opacity(0.14), radius: 28, x: 0, y: 8)
-                .shadow(color: .black.opacity(0.07), radius: 6, x: 0, y: 2)
-        }
+        .frame(maxWidth: .infinity)
+        .onAppear { animating = true }
     }
 }
 

@@ -5,162 +5,117 @@ struct EventCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Hero banner — Liquid Glass gradient
+            // Gradient hero
             ZStack(alignment: .bottomLeading) {
-                RoundedRectangle(cornerRadius: 0)
-                    .fill(
-                        LinearGradient(
-                            colors: card.gradientColors,
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(height: 120)
-                    .overlay(
-                        // Frosted glass shimmer
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.25), Color.clear],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                LinearGradient(
+                    colors: card.gradientColors,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: 100)
+                .overlay(Color.white.opacity(0.08))
 
-                // Emoji + tag row
                 HStack(alignment: .bottom) {
                     Text(card.emoji)
-                        .font(.system(size: 48))
-                        .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                        .font(.system(size: 40))
                     Spacer()
                     Text(card.tag)
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.white)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white.opacity(0.9))
                         .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(card.tagColor, in: Capsule())
-                        .shadow(color: card.tagColor.opacity(0.5), radius: 8, x: 0, y: 3)
+                        .padding(.vertical, 4)
+                        .background(.white.opacity(0.2), in: Capsule())
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 14)
+                .padding(.bottom, 12)
             }
             .clipShape(
                 UnevenRoundedRectangle(
-                    topLeadingRadius: 24, bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 0, topTrailingRadius: 24
+                    topLeadingRadius: 20, bottomLeadingRadius: 0,
+                    bottomTrailingRadius: 0, topTrailingRadius: 20
                 )
             )
 
-            // Info block
-            VStack(alignment: .leading, spacing: 10) {
-                // Title
-                Text(card.title)
-                    .font(.system(size: 17, weight: .heavy, design: .rounded))
-                    .foregroundColor(Color(hex: "#1A1A2E"))
-
-                // Category badge
-                Text(card.category)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(card.gradientColors.first ?? .purple)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background((card.gradientColors.first ?? .purple).opacity(0.12), in: Capsule())
-
-                // Detail rows
-                VStack(alignment: .leading, spacing: 7) {
-                    EventDetailRow(icon: "calendar", text: card.date)
-                    EventDetailRow(icon: "clock", text: card.time)
-                    EventDetailRow(icon: "mappin.and.ellipse", text: "\(card.place)  ·  \(card.district)")
-                    EventDetailRow(icon: "person.2", text: card.seats)
+            // Info
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(card.category.uppercased())
+                        .font(.system(size: 10, weight: .semibold))
+                        .tracking(0.8)
+                        .foregroundColor(.black.opacity(0.3))
+                    Text(card.title)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.black.opacity(0.88))
                 }
 
-                // Divider
+                // Detail pills
+                VStack(alignment: .leading, spacing: 6) {
+                    EvtRow(icon: "calendar", text: card.date)
+                    EvtRow(icon: "mappin", text: "\(card.place)  \(card.district)")
+                    EvtRow(icon: "person.2", text: card.seats)
+                }
+
                 Rectangle()
-                    .fill(Color(hex: "#E9ECEF").opacity(0.8))
+                    .fill(.black.opacity(0.05))
                     .frame(height: 1)
 
-                // Description
                 Text(card.desc)
                     .font(.system(size: 13))
-                    .foregroundColor(Color(hex: "#636E72"))
+                    .foregroundColor(.black.opacity(0.5))
                     .lineSpacing(5)
 
                 // Price + CTA
-                HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 1) {
                         Text("票价")
                             .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "#ADB5BD"))
+                            .foregroundColor(.black.opacity(0.3))
                         Text(card.price)
-                            .font(.system(size: 20, weight: .heavy, design: .rounded))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: card.gradientColors,
-                                    startPoint: .leading, endPoint: .trailing
-                                )
-                            )
+                            .font(.system(size: 22, weight: .heavy))
+                            .foregroundColor(.black.opacity(0.88))
                     }
                     Spacer()
                     Link(destination: URL(string: card.url)!) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "ticket.fill")
-                                .font(.system(size: 13, weight: .semibold))
-                            Text("立即报名")
-                                .font(.system(size: 13, weight: .bold))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 22)
-                        .padding(.vertical, 11)
-                        .background(
-                            LinearGradient(
-                                colors: card.gradientColors,
-                                startPoint: .leading, endPoint: .trailing
+                        Text("立即报名")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 22)
+                            .padding(.vertical, 11)
+                            .background(
+                                LinearGradient(
+                                    colors: card.gradientColors,
+                                    startPoint: .leading, endPoint: .trailing
+                                ),
+                                in: Capsule()
                             )
-                        )
-                        .clipShape(Capsule())
-                        .shadow(color: (card.gradientColors.first ?? .purple).opacity(0.4), radius: 12, x: 0, y: 5)
                     }
                 }
             }
             .padding(16)
         }
         .background {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.65), Color.white.opacity(0.25)],
-                                startPoint: .topLeading, endPoint: .bottomTrailing
-                            )
-                        )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.65), lineWidth: 1)
-                )
-                .shadow(color: (card.gradientColors.first ?? .purple).opacity(0.12), radius: 20, x: 0, y: 6)
-                .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.white.opacity(0.75))
+                .shadow(color: .black.opacity(0.06), radius: 16, x: 0, y: 4)
+                .shadow(color: .black.opacity(0.03), radius: 4, x: 0, y: 1)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .padding(.horizontal, 20)
     }
 }
 
-// MARK: - Detail Row
-
-struct EventDetailRow: View {
+struct EvtRow: View {
     let icon: String
     let text: String
-
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 12))
-                .foregroundColor(Color(hex: "#7C5CFC"))
-                .frame(width: 16)
+                .font(.system(size: 11))
+                .foregroundColor(.black.opacity(0.3))
+                .frame(width: 14)
             Text(text)
                 .font(.system(size: 13))
-                .foregroundColor(Color(hex: "#495057"))
+                .foregroundColor(.black.opacity(0.55))
         }
     }
 }
@@ -173,10 +128,9 @@ struct EventDetailRow: View {
         place: "坪山美术馆", district: "坪山区",
         price: "免费", seats: "每日限500人",
         tag: "热门", tagColor: Color(hex: "#E17055"),
-        desc: "汇聚20+国际艺术家，探索科技与艺术边界，深圳最具影响力的当代艺术年度盛宴。",
+        desc: "汇聚20+国际艺术家，探索科技与艺术边界。",
         url: "https://www.szmoa.org", src: "小红书"
     ))
-    .environmentObject(AppState())
     .padding(.vertical)
-    .background(Color(hex: "#F0EEFF"))
+    .background(Color(hex: "#F5F4F0"))
 }

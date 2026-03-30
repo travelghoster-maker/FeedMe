@@ -74,7 +74,7 @@ struct SubscriptionFilterBar: View {
     @EnvironmentObject var store: AppStore
 
     var body: some View {
-        ScrollView(.horizontal, showsScrollIndicators: false) {
+        ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Spacing.sm) {
                 FilterChip(
                     title: "全部",

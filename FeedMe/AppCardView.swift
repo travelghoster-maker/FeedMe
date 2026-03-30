@@ -74,7 +74,7 @@ struct AppCardView: View {
                     .padding(.vertical, Spacing.md)
 
                 // Tags
-                ScrollView(.horizontal, showsScrollIndicators: false) {
+                ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Spacing.sm) {
                         ForEach(app.tags, id: \.self) { tag in
                             TagChip(text: "#\(tag)", color: .appPrimary)

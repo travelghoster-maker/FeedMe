@@ -40,7 +40,7 @@ struct EventCardView: View {
                         .lineLimit(3)
 
                     // Tags
-                    ScrollView(.horizontal, showsScrollIndicators: false) {
+                    ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: Spacing.sm) {
                             ForEach(event.tags, id: \.self) { tag in
                                 TagChip(text: "#\(tag)", color: Color(hex: "#F59E0B"))

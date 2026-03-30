@@ -544,6 +544,13 @@ struct SuggestionChip: View {
     }
 }
 
+// MARK: - Preview
+
+#Preview("对话页") {
+    ChatView()
+        .environmentObject(AppStore())
+}
+
 // MARK: - Markdown Text (simplified)
 
 struct MarkdownText: View {

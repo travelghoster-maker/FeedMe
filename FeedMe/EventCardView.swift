@@ -176,6 +176,19 @@ struct EventCoverView: View {
     }
 }
 
+// MARK: - Preview
+
+#Preview("活动卡片") {
+    ScrollView {
+        EventCardView(
+            item: MockData.eventItems[0],
+            subscriptionTitle: "深圳周末活动"
+        )
+        .padding()
+    }
+    .background(Color(.systemGroupedBackground))
+}
+
 // MARK: - Event Meta Row
 
 struct EventMetaRow: View {

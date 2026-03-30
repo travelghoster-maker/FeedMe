@@ -22,3 +22,10 @@ struct MainTabView: View {
         .tint(.appPrimary)
     }
 }
+
+// MARK: - Preview
+
+#Preview("完整 App") {
+    MainTabView()
+        .environmentObject(AppStore())
+}

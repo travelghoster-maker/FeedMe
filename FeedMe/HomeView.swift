@@ -187,6 +187,13 @@ struct EmptyFeedView: View {
     }
 }
 
+// MARK: - Preview
+
+#Preview("首页 Feed") {
+    HomeView()
+        .environmentObject(AppStore())
+}
+
 // MARK: - Floating Hint
 
 struct FloatingHintView: View {

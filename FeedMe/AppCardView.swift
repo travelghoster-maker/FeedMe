@@ -187,6 +187,19 @@ struct SourceBar: View {
     }
 }
 
+// MARK: - Preview
+
+#Preview("App 卡片") {
+    ScrollView {
+        AppCardView(
+            item: MockData.appItems[0],
+            subscriptionTitle: "小众设计感 App"
+        )
+        .padding()
+    }
+    .background(Color(.systemGroupedBackground))
+}
+
 // MARK: - App Card Compact (for mixed feed)
 
 struct AppCardCompact: View {

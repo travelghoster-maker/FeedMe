@@ -68,6 +68,13 @@ struct SubscriptionsView: View {
     }
 }
 
+// MARK: - Preview
+
+#Preview("订阅管理") {
+    SubscriptionsView()
+        .environmentObject(AppStore())
+}
+
 // MARK: - Stats Card
 
 struct SubscriptionStatsCard: View {

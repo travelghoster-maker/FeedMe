@@ -1,210 +1,129 @@
 import SwiftUI
 
-// MARK: - Event Card (Full)
-
 struct EventCardView: View {
-    let item: FeedItem
-    let subscriptionTitle: String
-    @State private var isPressed = false
-
-    private var event: EventContent? {
-        if case .event(let e) = item.content { return e }
-        return nil
-    }
+    let card: EventCard
+    @State private var pressed = false
 
     var body: some View {
-        guard let event = event else { return AnyView(EmptyView()) }
-        return AnyView(
-            VStack(alignment: .leading, spacing: 0) {
-                // Cover Image Area
-                EventCoverView(event: event)
+        Button {
+            if let url = URL(string: card.url) { UIApplication.shared.open(url) }
+        } label: {
+            VStack(spacing: 0) {
+                // Gradient header
+                ZStack(alignment: .topTrailing) {
+                    LinearGradient(colors: card.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
 
-                // Content
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    // Title
-                    Text(event.title)
-                        .font(AppFont.title3())
-                        .foregroundColor(.primary)
+                    // Tag badge
+                    Text(card.tag)
+                        .font(.system(size: 10, weight: .heavy))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 3)
+                        .background(card.tagColor)
+                        .clipShape(Capsule())
+                        .padding(12)
 
-                    // Meta info
-                    VStack(alignment: .leading, spacing: Spacing.sm) {
-                        EventMetaRow(icon: "calendar", text: "\(event.date)  \(event.time)")
-                        EventMetaRow(icon: "mappin.and.ellipse", text: event.location)
-                        EventMetaRow(icon: "person.2", text: "\(event.attendeeCount) 人感兴趣")
-                    }
-
-                    // Description
-                    Text(event.description)
-                        .font(AppFont.subheadline())
-                        .foregroundColor(.secondary)
-                        .lineLimit(3)
-
-                    // Tags
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: Spacing.sm) {
-                            ForEach(event.tags, id: \.self) { tag in
-                                TagChip(text: "#\(tag)", color: Color(hex: "#F59E0B"))
-                            }
-                        }
-                    }
-
-                    // CTA
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("票价")
-                                .font(AppFont.caption())
-                                .foregroundColor(.secondary)
-                            Text(event.price)
-                                .font(AppFont.headline())
-                                .foregroundColor(event.price == "免费" ? .appGreen : .primary)
-                        }
-
+                    VStack(alignment: .leading, spacing: 3) {
                         Spacer()
-
-                        Button(action: { openURL(event.signupURL) }) {
-                            HStack(spacing: Spacing.xs) {
-                                Text("立即报名")
-                                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                Image(systemName: "arrow.up.right")
-                                    .font(.system(size: 13, weight: .semibold))
-                            }
+                        Text(card.emoji)
+                            .font(.system(size: 38))
+                            .padding(.bottom, 8)
+                        Text(card.title)
+                            .font(.system(size: 18, weight: .heavy))
                             .foregroundColor(.white)
-                            .padding(.horizontal, Spacing.xl)
-                            .padding(.vertical, Spacing.md)
+                        Text(card.category)
+                            .font(.system(size: 11))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                }
+                .frame(height: 150)
+
+                // Body
+                VStack(alignment: .leading, spacing: 10) {
+                    // Meta grid
+                    HStack(spacing: 8) {
+                        MetaBox(label: "📅 时间", main: card.date, sub: card.time)
+                        MetaBox(label: "📍 地点", main: card.place, sub: card.district)
+                    }
+
+                    // Desc
+                    Text(card.desc)
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(hex: "#6C757D"))
+                        .lineSpacing(4)
+
+                    // Footer
+                    HStack(alignment: .center) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(card.price)
+                                .font(.system(size: 17, weight: .heavy))
+                                .foregroundColor(Color(hex: "#1A1A2E"))
+                            Text(card.seats)
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(hex: "#ADB5BD"))
+                        }
+                        Spacer()
+                        Text("立即报名 ↗")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 22)
+                            .padding(.vertical, 9)
                             .background(
-                                LinearGradient(
-                                    colors: [Color(hex: "#F59E0B"), Color(hex: "#EF4444")],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
+                                LinearGradient(colors: [Color(hex: "#7C5CFC"), Color(hex: "#A78BFA")],
+                                               startPoint: .leading, endPoint: .trailing)
                             )
                             .clipShape(Capsule())
-                        }
                     }
                 }
-                .padding(Spacing.lg)
-
-                SourceBar(source: "来自小红书", subscriptionTitle: subscriptionTitle, publishedAt: item.publishedAt)
+                .padding(14)
+                .background(Color.white)
             }
-            .background(Color.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
-            .cardShadow()
-            .scaleEffect(isPressed ? 0.98 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
-        )
-    }
-
-    private func openURL(_ urlString: String) {
-        if let url = URL(string: urlString) {
-            UIApplication.shared.open(url)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .shadow(color: .black.opacity(0.11), radius: 24, x: 0, y: 4)
+            .scaleEffect(pressed ? 0.97 : 1)
         }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: 50, pressing: { pressed = $0 }, perform: {})
     }
 }
 
-// MARK: - Event Cover
+// MARK: - Meta Box
 
-struct EventCoverView: View {
-    let event: EventContent
-
-    private var gradient: LinearGradient {
-        LinearGradient(
-            colors: [Color(hex: "#F59E0B").opacity(0.8), Color(hex: "#EF4444").opacity(0.9)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
+struct MetaBox: View {
+    let label: String
+    let main: String
+    let sub: String
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            // Background gradient (real app would use AsyncImage)
-            Rectangle()
-                .fill(gradient)
-                .frame(height: 160)
-                .overlay(
-                    // Decorative pattern
-                    ZStack {
-                        Circle()
-                            .fill(.white.opacity(0.05))
-                            .frame(width: 200, height: 200)
-                            .offset(x: 80, y: -50)
-                        Circle()
-                            .fill(.white.opacity(0.05))
-                            .frame(width: 140, height: 140)
-                            .offset(x: -30, y: 40)
-                    }
-                )
-
-            // Date Badge
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: Spacing.xs) {
-                    Image(systemName: "calendar.circle.fill")
-                        .font(.system(size: 14))
-                    Text(event.date)
-                        .font(AppFont.footnote().weight(.semibold))
-                }
-                .foregroundColor(.white)
-
-                HStack(spacing: Spacing.xs) {
-                    Image(systemName: "clock.fill")
-                        .font(.system(size: 12))
-                    Text(event.time)
-                        .font(AppFont.caption())
-                }
-                .foregroundColor(.white.opacity(0.85))
-            }
-            .padding(Spacing.md)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-            .padding(Spacing.md)
-
-            // City Badge
-            HStack {
-                Spacer()
-                Text(event.city)
-                    .font(AppFont.caption2())
-                    .foregroundColor(.white)
-                    .padding(.horizontal, Spacing.sm)
-                    .padding(.vertical, Spacing.xs)
-                    .background(.black.opacity(0.3))
-                    .clipShape(Capsule())
-                    .padding(Spacing.md)
-            }
-            .frame(maxHeight: .infinity, alignment: .top)
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 10))
+                .foregroundColor(Color(hex: "#CED4DA"))
+            Text(main)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(Color(hex: "#1A1A2E"))
+                .lineLimit(1)
+            Text(sub)
+                .font(.system(size: 11))
+                .foregroundColor(Color(hex: "#ADB5BD"))
         }
-        .frame(height: 160)
-        .clipped()
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(hex: "#F7F8FC"))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
-// MARK: - Preview
-
-#Preview("活动卡片") {
+#Preview {
     ScrollView {
-        EventCardView(
-            item: MockData.eventItems[0],
-            subscriptionTitle: "深圳周末活动"
-        )
-        .padding()
+        EventCardView(card: AppData.mockCards["events-shenzhen"]!.compactMap {
+            if case .event(let e) = $0.content { return e } else { return nil }
+        }.first!)
+        .padding(.vertical, 8)
     }
-    .background(Color(.systemGroupedBackground))
-}
-
-// MARK: - Event Meta Row
-
-struct EventMetaRow: View {
-    let icon: String
-    let text: String
-
-    var body: some View {
-        HStack(spacing: Spacing.sm) {
-            Image(systemName: icon)
-                .font(.system(size: 13))
-                .foregroundColor(Color(hex: "#F59E0B"))
-                .frame(width: 18)
-
-            Text(text)
-                .font(AppFont.subheadline())
-                .foregroundColor(.secondary)
-        }
-    }
+    .background(Color(hex: "#F7F8FC"))
 }

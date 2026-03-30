@@ -2,12 +2,12 @@ import SwiftUI
 
 @main
 struct FeedMeApp: App {
-    @StateObject private var store = AppStore()
+    @StateObject private var state = AppState()
 
     var body: some Scene {
         WindowGroup {
             MainTabView()
-                .environmentObject(store)
+                .environmentObject(state)
         }
     }
 }

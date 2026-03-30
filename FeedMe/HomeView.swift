@@ -1,232 +1,153 @@
 import SwiftUI
 
-// MARK: - Home View
-
 struct HomeView: View {
-    @EnvironmentObject var store: AppStore
-    @State private var scrollOffset: CGFloat = 0
-    @State private var showingSubscriptions = false
+    @EnvironmentObject var state: AppState
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottom) {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        // Subscription Filter Chips
-                        SubscriptionFilterBar()
-                            .padding(.top, Spacing.sm)
-                            .padding(.bottom, Spacing.lg)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
 
-                        // Feed Items
-                        if store.filteredFeedItems.isEmpty {
-                            EmptyFeedView()
-                                .padding(.top, 60)
-                        } else {
-                            ForEach(store.filteredFeedItems) { item in
-                                FeedCardWrapper(item: item)
-                                    .padding(.horizontal, Spacing.lg)
-                                    .padding(.bottom, Spacing.lg)
+                // Header
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 0) {
+                        Text("你的 ")
+                            .font(.system(size: 26, weight: .heavy, design: .rounded))
+                            .foregroundColor(Color(hex: "#1A1A2E"))
+                        Text("Feed")
+                            .font(.system(size: 26, weight: .heavy, design: .rounded))
+                            .foregroundColor(Color(hex: "#7C5CFC"))
+                    }
+                    Text(state.cards.isEmpty
+                         ? "还没有订阅，去「发现」页添加吧"
+                         : "\(state.cards.count) 条最新内容，持续更新中")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(hex: "#ADB5BD"))
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .padding(.bottom, 14)
+
+                // Filter pills
+                if !state.subs.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            FilterPill(label: "全部", active: state.filter == nil, color: Color(hex: "#1A1A2E")) {
+                                withAnimation(.spring(response: 0.3)) { state.filter = nil }
+                            }
+                            ForEach(state.subs) { sub in
+                                FilterPill(
+                                    label: "\(sub.template.icon) \(sub.template.name)",
+                                    active: state.filter == sub.template.id,
+                                    color: sub.template.color
+                                ) {
+                                    withAnimation(.spring(response: 0.3)) {
+                                        state.filter = state.filter == sub.template.id ? nil : sub.template.id
+                                    }
+                                }
                             }
                         }
-
-                        // Bottom padding for tab bar
-                        Color.clear.frame(height: 80)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 4)
                     }
-                }
-                .scrollIndicators(.hidden)
-                .refreshable {
-                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    .padding(.bottom, 12)
                 }
 
-                // Floating hint (first launch)
-                FloatingHintView()
-                    .padding(.bottom, 100)
-            }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("订阅")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingSubscriptions = true
-                    } label: {
-                        ZStack {
-                            Circle()
-                                .fill(Color(.secondarySystemBackground))
-                                .frame(width: 34, height: 34)
-                            Image(systemName: "square.stack.3d.up")
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundColor(.primary)
+                // Cards
+                if state.filteredCards.isEmpty {
+                    EmptyHome()
+                } else {
+                    LazyVStack(spacing: 0) {
+                        ForEach(state.filteredCards) { card in
+                            VStack(alignment: .leading, spacing: 6) {
+                                // Sub label
+                                HStack(spacing: 5) {
+                                    Text(card.subIcon)
+                                        .font(.system(size: 13))
+                                    Text(card.subName)
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(Color(hex: "#CED4DA"))
+                                }
+                                .padding(.horizontal, 16)
+
+                                switch card.content {
+                                case .app(let a):   AppCardView(card: a)
+                                case .event(let e): EventCardView(card: e)
+                                }
+                            }
+                            .padding(.bottom, 16)
                         }
                     }
                 }
-            }
-            .sheet(isPresented: $showingSubscriptions) {
-                SubscriptionsView()
+
+                Color.clear.frame(height: 20)
             }
         }
+        .background(Color(hex: "#F7F8FC"))
     }
 }
 
-// MARK: - Subscription Filter Bar
+// MARK: - Filter Pill
 
-struct SubscriptionFilterBar: View {
-    @EnvironmentObject var store: AppStore
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Spacing.sm) {
-                FilterChip(
-                    title: "全部",
-                    count: store.feedItems.count,
-                    isSelected: store.activeFilter == nil,
-                    color: .appPrimary
-                ) {
-                    withAnimation(.spring(response: 0.3)) {
-                        store.activeFilter = nil
-                    }
-                }
-
-                ForEach(store.subscriptions) { sub in
-                    FilterChip(
-                        title: sub.title,
-                        count: store.feedItems.filter { $0.subscriptionId == sub.id }.count,
-                        isSelected: store.activeFilter == sub.title,
-                        color: Color.fromHex(sub.colorHex)
-                    ) {
-                        withAnimation(.spring(response: 0.3)) {
-                            store.activeFilter = store.activeFilter == sub.title ? nil : sub.title
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, Spacing.lg)
-        }
-    }
-}
-
-// MARK: - Filter Chip
-
-struct FilterChip: View {
-    let title: String
-    let count: Int
-    let isSelected: Bool
+struct FilterPill: View {
+    let label: String
+    let active: Bool
     let color: Color
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: Spacing.xs) {
-                Text(title)
-                    .font(AppFont.footnote().weight(isSelected ? .semibold : .regular))
-                    .lineLimit(1)
-
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundColor(isSelected ? .white.opacity(0.8) : color.opacity(0.8))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(isSelected ? .white.opacity(0.2) : color.opacity(0.15))
-                        .clipShape(Capsule())
-                }
-            }
-            .foregroundColor(isSelected ? .white : .primary)
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.sm)
-            .background(isSelected ? color : Color(.secondarySystemBackground))
-            .clipShape(Capsule())
+            Text(label)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(active ? .white : color)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(active ? color : Color.white)
+                .overlay(
+                    Capsule().stroke(active ? color : color.opacity(0.35), lineWidth: 1.5)
+                )
+                .clipShape(Capsule())
         }
-        .animation(.spring(response: 0.25), value: isSelected)
     }
 }
 
-// MARK: - Feed Card Wrapper (routes to correct card type)
+// MARK: - Empty State
 
-struct FeedCardWrapper: View {
-    let item: FeedItem
-    @EnvironmentObject var store: AppStore
-
-    private var subscriptionTitle: String {
-        store.subscriptions.first(where: { $0.id == item.subscriptionId })?.title ?? ""
-    }
+struct EmptyHome: View {
+    @EnvironmentObject var state: AppState
 
     var body: some View {
-        switch item.type {
-        case .app:
-            AppCardView(item: item, subscriptionTitle: subscriptionTitle)
-        case .event:
-            EventCardView(item: item, subscriptionTitle: subscriptionTitle)
-        case .content:
-            // Placeholder for article cards
-            Text("Article Card")
-        }
-    }
-}
-
-// MARK: - Empty Feed
-
-struct EmptyFeedView: View {
-    var body: some View {
-        VStack(spacing: Spacing.xl) {
-            Image(systemName: "tray")
-                .font(.system(size: 48))
-                .foregroundColor(Color(.tertiaryLabel))
-
-            VStack(spacing: Spacing.sm) {
-                Text("这里还是空的")
-                    .font(AppFont.headline())
-                    .foregroundColor(.secondary)
-
-                Text("试试说「推荐几个设计感强的 App」\n或「北京本周末有什么活动」")
-                    .font(AppFont.subheadline())
-                    .foregroundColor(Color(.tertiaryLabel))
-                    .multilineTextAlignment(.center)
+        VStack(spacing: 16) {
+            Text("✦")
+                .font(.system(size: 56))
+            Text("还没有内容")
+                .font(.system(size: 20, weight: .heavy, design: .rounded))
+                .foregroundColor(Color(hex: "#1A1A2E"))
+            Text("去「发现」页告诉我你的兴趣\n我来帮你追踪和整理内容")
+                .font(.system(size: 14))
+                .foregroundColor(Color(hex: "#ADB5BD"))
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+            Button {
+                withAnimation { state.tab = 1 }
+            } label: {
+                Text("开始订阅 →")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .background(
+                        LinearGradient(colors: [Color(hex: "#7C5CFC"), Color(hex: "#A78BFA")],
+                                       startPoint: .leading, endPoint: .trailing)
+                    )
+                    .clipShape(Capsule())
             }
         }
+        .padding(.top, 60)
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity)
     }
 }
 
-// MARK: - Preview
-
-#Preview("首页 Feed") {
-    HomeView()
-        .environmentObject(AppStore())
-}
-
-// MARK: - Floating Hint
-
-struct FloatingHintView: View {
-    @EnvironmentObject var store: AppStore
-    @AppStorage("hasSeenHint") private var hasSeenHint = false
-
-    var body: some View {
-        if !hasSeenHint && store.subscriptions.isEmpty {
-            HStack(spacing: Spacing.md) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 16))
-                    .foregroundColor(.appPrimary)
-
-                Text("试着告诉我你想订阅什么 ✨")
-                    .font(AppFont.subheadline())
-                    .foregroundColor(.primary)
-
-                Spacer()
-
-                Button {
-                    hasSeenHint = true
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-            }
-            .padding(Spacing.lg)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
-            .padding(.horizontal, Spacing.lg)
-            .cardShadow()
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-        }
-    }
+#Preview {
+    HomeView().environmentObject(AppState())
 }

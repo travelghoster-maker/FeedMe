@@ -1,191 +1,200 @@
 import SwiftUI
 
-// MARK: - Subscriptions Management View
-
 struct SubscriptionsView: View {
-    @EnvironmentObject var store: AppStore
-    @Environment(\.dismiss) var dismiss
-    @State private var editMode: EditMode = .inactive
-    @State private var showingDeleteAlert = false
-    @State private var subscriptionToDelete: Subscription? = nil
+    @EnvironmentObject var state: AppState
+
+    var available: [SubTemplate] {
+        AppData.templates.filter { t in !state.subs.contains { $0.template == t } }
+    }
 
     var body: some View {
-        NavigationStack {
-            List {
-                // Stats header
-                Section {
-                    SubscriptionStatsCard(subscriptions: store.subscriptions)
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+
+                // Header
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("我的订阅")
+                        .font(.system(size: 26, weight: .heavy, design: .rounded))
+                        .foregroundColor(Color(hex: "#1A1A2E"))
+                    Text("\(state.subs.count) 个活跃订阅")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(hex: "#ADB5BD"))
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .padding(.bottom, 16)
+
+                // Active subs
+                if state.subs.isEmpty {
+                    EmptySubs()
+                } else {
+                    ForEach(state.subs) { sub in
+                        SubRow(sub: sub)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 10)
+                    }
                 }
 
-                // Subscriptions
-                Section {
-                    ForEach(store.subscriptions) { sub in
-                        SubscriptionRow(subscription: sub) {
-                            subscriptionToDelete = sub
-                            showingDeleteAlert = true
-                        }
-                        .listRowInsets(EdgeInsets(top: 0, leading: Spacing.lg, bottom: 0, trailing: Spacing.lg))
-                        .listRowBackground(Color(.secondarySystemBackground))
+                // Recommended
+                if !available.isEmpty {
+                    Text("💡 推荐订阅")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(Color(hex: "#1A1A2E"))
+                        .padding(.horizontal, 16)
+                        .padding(.top, 20)
+                        .padding(.bottom, 12)
+
+                    ForEach(available) { t in
+                        SuggestRow(template: t)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
                     }
-                } header: {
-                    Text("我的订阅  \(store.subscriptions.count)")
-                        .font(AppFont.footnote())
-                        .foregroundColor(.secondary)
-                        .textCase(nil)
                 }
+
+                Color.clear.frame(height: 20)
             }
-            .listStyle(.insetGrouped)
-            .navigationTitle("订阅管理")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("完成") { dismiss() }
+        }
+        .background(Color(hex: "#F7F8FC"))
+    }
+}
+
+// MARK: - Sub Row
+
+struct SubRow: View {
+    let sub: UserSub
+    @EnvironmentObject var state: AppState
+    @State private var pressed = false
+
+    var count: Int { state.cards.filter { $0.subKey == sub.template.id }.count }
+
+    var body: some View {
+        Button {
+            state.filter = sub.template.id
+            state.tab = 0
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(sub.template.color.opacity(0.12))
+                        .frame(width: 54, height: 54)
+                    Text(sub.template.icon)
+                        .font(.system(size: 26))
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(editMode.isEditing ? "完成" : "编辑") {
-                        withAnimation {
-                            editMode = editMode.isEditing ? .inactive : .active
-                        }
-                    }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(sub.template.name)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(Color(hex: "#1A1A2E"))
+                    Text(sub.template.desc)
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "#ADB5BD"))
+                    Text("\(count) 条内容 · \(sub.template.src)")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(sub.template.color)
                 }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(Color(hex: "#CED4DA"))
             }
-            .environment(\.editMode, $editMode)
-            .alert("删除订阅", isPresented: $showingDeleteAlert) {
-                Button("删除", role: .destructive) {
-                    if let sub = subscriptionToDelete {
-                        withAnimation {
-                            store.removeSubscription(sub)
-                        }
-                    }
-                }
-                Button("取消", role: .cancel) {}
-            } message: {
-                Text("删除后，该订阅的所有内容也会从首页移除。")
+            .padding(16)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(RoundedRectangle(cornerRadius: 20).stroke(sub.template.color.opacity(0.15), lineWidth: 1.5))
+            .shadow(color: .black.opacity(0.06), radius: 14, x: 0, y: 2)
+            .scaleEffect(pressed ? 0.97 : 1)
+        }
+        .buttonStyle(.plain)
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: 50, pressing: { pressed = $0 }, perform: {})
+        .contextMenu {
+            Button(role: .destructive) {
+                withAnimation { state.removeSub(sub) }
+            } label: {
+                Label("删除订阅", systemImage: "trash")
             }
         }
     }
 }
 
-// MARK: - Preview
+// MARK: - Suggest Row
 
-#Preview("订阅管理") {
-    SubscriptionsView()
-        .environmentObject(AppStore())
-}
-
-// MARK: - Stats Card
-
-struct SubscriptionStatsCard: View {
-    let subscriptions: [Subscription]
-
-    private var totalItems: Int {
-        subscriptions.reduce(0) { $0 + $1.itemCount }
-    }
-
-    private var appCount: Int {
-        subscriptions.filter { $0.type == .app }.count
-    }
-
-    private var eventCount: Int {
-        subscriptions.filter { $0.type == .event }.count
-    }
+struct SuggestRow: View {
+    let template: SubTemplate
+    @EnvironmentObject var state: AppState
+    @State private var pressed = false
 
     var body: some View {
-        HStack(spacing: 0) {
-            StatItem(value: "\(subscriptions.count)", label: "订阅", color: .appPrimary)
-            Divider().frame(height: 40)
-            StatItem(value: "\(appCount)", label: "应用", color: Color(hex: "#6366F1"))
-            Divider().frame(height: 40)
-            StatItem(value: "\(eventCount)", label: "活动", color: Color(hex: "#F59E0B"))
-            Divider().frame(height: 40)
-            StatItem(value: "\(totalItems)", label: "已发现", color: .appGreen)
+        Button {
+            state.addSub(template)
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(template.color.opacity(0.12))
+                        .frame(width: 42, height: 42)
+                    Text(template.icon).font(.system(size: 20))
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(template.name)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color(hex: "#1A1A2E"))
+                    Text(template.src)
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "#ADB5BD"))
+                }
+                Spacer()
+                Text("订阅")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 5)
+                    .background(template.color)
+                    .clipShape(Capsule())
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Color(hex: "#F7F8FC"))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "#F0F1F5"), lineWidth: 1))
+            .scaleEffect(pressed ? 0.97 : 1)
         }
-        .padding(Spacing.lg)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
-        .padding(Spacing.lg)
+        .buttonStyle(.plain)
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: 50, pressing: { pressed = $0 }, perform: {})
     }
 }
 
-struct StatItem: View {
-    let value: String
-    let label: String
-    let color: Color
+// MARK: - Empty
+
+struct EmptySubs: View {
+    @EnvironmentObject var state: AppState
 
     var body: some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundColor(color)
-            Text(label)
-                .font(AppFont.caption())
-                .foregroundColor(.secondary)
+        VStack(spacing: 16) {
+            Text("◎").font(.system(size: 56))
+            Text("还没有订阅")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(Color(hex: "#1A1A2E"))
+            Text("去「发现」页添加你感兴趣的内容")
+                .font(.system(size: 14))
+                .foregroundColor(Color(hex: "#ADB5BD"))
+            Button {
+                withAnimation { state.tab = 1 }
+            } label: {
+                Text("去发现 →")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 26)
+                    .padding(.vertical, 11)
+                    .background(LinearGradient(colors: [Color(hex: "#7C5CFC"), Color(hex: "#A78BFA")],
+                                               startPoint: .leading, endPoint: .trailing))
+                    .clipShape(Capsule())
+            }
         }
+        .padding(.top, 50)
+        .padding(.horizontal, 24)
         .frame(maxWidth: .infinity)
     }
 }
 
-// MARK: - Subscription Row
-
-struct SubscriptionRow: View {
-    let subscription: Subscription
-    let onDelete: () -> Void
-
-    var body: some View {
-        HStack(spacing: Spacing.md) {
-            // Icon
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.fromHex(subscription.colorHex).opacity(0.15))
-                    .frame(width: 44, height: 44)
-                Image(systemName: subscription.iconName)
-                    .font(.system(size: 20))
-                    .foregroundColor(Color.fromHex(subscription.colorHex))
-            }
-
-            // Info
-            VStack(alignment: .leading, spacing: 4) {
-                Text(subscription.title)
-                    .font(AppFont.headline())
-                    .lineLimit(1)
-
-                HStack(spacing: Spacing.sm) {
-                    Label(subscription.type.label, systemImage: subscription.type.icon)
-                        .font(AppFont.caption())
-                        .foregroundColor(.secondary)
-
-                    Text("·")
-                        .foregroundColor(.secondary)
-
-                    Text(subscription.query)
-                        .font(AppFont.caption())
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer()
-
-            // Item count badge
-            VStack(spacing: 2) {
-                Text("\(subscription.itemCount)")
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundColor(Color.fromHex(subscription.colorHex))
-                Text("条")
-                    .font(AppFont.caption2())
-                    .foregroundColor(.secondary)
-            }
-
-            // Delete
-            Button(action: onDelete) {
-                Image(systemName: "trash")
-                    .font(.system(size: 15))
-                    .foregroundColor(.red.opacity(0.7))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.vertical, Spacing.md)
-    }
+#Preview {
+    SubscriptionsView().environmentObject(AppState())
 }

@@ -1,262 +1,125 @@
 import SwiftUI
 
-// MARK: - App Card (Full)
-
 struct AppCardView: View {
-    let item: FeedItem
-    let subscriptionTitle: String
-    @State private var isPressed = false
+    let card: AppCard
+    @State private var pressed = false
 
-    private var app: AppContent? {
-        if case .app(let a) = item.content { return a }
-        return nil
+    var ctaLabel: String {
+        switch card.price {
+        case "免费": return "免费下载 ↗"
+        case "免费内购": return "免费获取 ↗"
+        default:
+            if card.price.contains("人均") { return "查看地图 ↗" }
+            return "\(card.price) ↗"
+        }
     }
 
     var body: some View {
-        guard let app = app else { return AnyView(EmptyView()) }
-        return AnyView(
+        Button {
+            if let url = URL(string: card.url) { UIApplication.shared.open(url) }
+        } label: {
             VStack(alignment: .leading, spacing: 0) {
-                // Header
-                HStack(spacing: Spacing.md) {
-                    // App Icon Placeholder
-                    AppIconPlaceholder(name: app.name, color: .appPrimary)
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(app.name)
-                            .font(AppFont.headline())
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-
-                        Text(app.developer)
-                            .font(AppFont.caption())
-                            .foregroundColor(.secondary)
-
-                        HStack(spacing: Spacing.xs) {
-                            StarRatingView(rating: app.rating)
-                            Text(String(format: "%.1f", app.rating))
-                                .font(AppFont.caption2())
-                                .foregroundColor(Color(hex: "#F59E0B"))
-                            Text("(\(formatCount(app.reviewCount)))")
-                                .font(AppFont.caption())
-                                .foregroundColor(.secondary)
-                        }
+                // Top row
+                HStack(alignment: .top, spacing: 14) {
+                    // Icon
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(card.color.opacity(0.12))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(card.color.opacity(0.18), lineWidth: 1.5))
+                            .frame(width: 62, height: 62)
+                        Text(card.icon)
+                            .font(.system(size: 28))
                     }
 
-                    Spacer()
-
-                    // Price + Get Button
-                    VStack(spacing: Spacing.xs) {
-                        Text(app.price)
-                            .font(AppFont.caption2())
-                            .foregroundColor(.secondary)
-
-                        Button(action: { openAppStore(app.appStoreURL) }) {
-                            Text("获取")
-                                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                .foregroundColor(.appPrimary)
-                                .frame(width: 72, height: 30)
-                                .background(Color.appPrimary.opacity(0.12))
+                    // Meta
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(alignment: .center, spacing: 8) {
+                            Text(card.name)
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundColor(Color(hex: "#1A1A2E"))
+                                .lineLimit(1)
+                            Spacer()
+                            Text(card.tag)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(card.color)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 2)
+                                .background(card.color.opacity(0.12))
                                 .clipShape(Capsule())
                         }
+                        Text(card.category)
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(hex: "#ADB5BD"))
+                            .padding(.bottom, 3)
+                        StarsView(rating: card.rating, count: card.ratingCount)
                     }
                 }
-                .padding(Spacing.lg)
+                .padding(.bottom, 11)
 
-                Divider()
-                    .padding(.horizontal, Spacing.lg)
+                // Desc
+                Text(card.desc)
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(hex: "#6C757D"))
+                    .lineSpacing(4)
+                    .padding(.bottom, 12)
 
-                // Description
-                Text(app.description)
-                    .font(AppFont.subheadline())
-                    .foregroundColor(.secondary)
-                    .lineLimit(3)
-                    .padding(.horizontal, Spacing.lg)
-                    .padding(.vertical, Spacing.md)
-
-                // Tags
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Spacing.sm) {
-                        ForEach(app.tags, id: \.self) { tag in
-                            TagChip(text: "#\(tag)", color: .appPrimary)
-                        }
-                    }
-                    .padding(.horizontal, Spacing.lg)
-                    .padding(.bottom, Spacing.lg)
+                // Footer
+                HStack {
+                    Text("📌 \(card.src)")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "#CED4DA"))
+                    Spacer()
+                    Text(ctaLabel)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 8)
+                        .background(card.color)
+                        .clipShape(Capsule())
                 }
-
-                // Source bar
-                SourceBar(source: "来自小红书", subscriptionTitle: subscriptionTitle, publishedAt: item.publishedAt)
             }
-            .background(Color.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.xl))
-            .cardShadow()
-            .scaleEffect(isPressed ? 0.98 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
-            .onTapGesture { openAppStore(app.appStoreURL) }
-            .onLongPressGesture(minimumDuration: 0, maximumDistance: 50,
-                pressing: { isPressed = $0 }, perform: {})
-        )
-    }
-
-    private func openAppStore(_ urlString: String) {
-        if let url = URL(string: urlString) {
-            UIApplication.shared.open(url)
+            .padding(16)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "#F0F1F5"), lineWidth: 1))
+            .shadow(color: .black.opacity(0.07), radius: 18, x: 0, y: 2)
+            .scaleEffect(pressed ? 0.97 : 1)
         }
-    }
-
-    private func formatCount(_ count: Int) -> String {
-        if count >= 10000 { return "\(count / 10000)万" }
-        if count >= 1000 { return "\(count / 1000)k" }
-        return "\(count)"
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: 50, pressing: { pressed = $0 }, perform: {})
     }
 }
 
-// MARK: - App Icon Placeholder
+// MARK: - Stars
 
-struct AppIconPlaceholder: View {
-    let name: String
-    let color: Color
-
-    // Generate consistent gradient from name
-    private var gradient: LinearGradient {
-        let colors = [
-            [Color(hex: "#6366F1"), Color(hex: "#8B5CF6")],
-            [Color(hex: "#F59E0B"), Color(hex: "#EF4444")],
-            [Color(hex: "#10B981"), Color(hex: "#06B6D4")],
-            [Color(hex: "#EC4899"), Color(hex: "#8B5CF6")],
-            [Color(hex: "#3B82F6"), Color(hex: "#6366F1")]
-        ]
-        let idx = abs(name.hashValue) % colors.count
-        return LinearGradient(colors: colors[idx], startPoint: .topLeading, endPoint: .bottomTrailing)
-    }
+struct StarsView: View {
+    let rating: Double
+    let count: String
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 14)
-                .fill(gradient)
-                .frame(width: 60, height: 60)
-
-            Text(String(name.prefix(1)))
-                .font(.system(size: 26, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+        HStack(spacing: 3) {
+            ForEach(0..<5, id: \.self) { i in
+                Image(systemName: Double(i) + 1 <= rating ? "star.fill" : "star")
+                    .font(.system(size: 11))
+                    .foregroundColor(Double(i) + 1 <= rating ? Color(hex: "#F59F00") : Color(hex: "#ddd"))
+            }
+            Text(String(format: "%.1f", rating))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Color(hex: "#F59F00"))
+            Text("(\(count))")
+                .font(.system(size: 11))
+                .foregroundColor(Color(hex: "#ADB5BD"))
         }
     }
 }
 
-// MARK: - Source Bar
-
-struct SourceBar: View {
-    let source: String
-    let subscriptionTitle: String
-    let publishedAt: Date
-
-    var body: some View {
-        HStack(spacing: Spacing.sm) {
-            Image(systemName: "circle.fill")
-                .font(.system(size: 6))
-                .foregroundColor(.appPrimary)
-
-            Text(subscriptionTitle)
-                .font(AppFont.caption2())
-                .foregroundColor(.appPrimary)
-                .fontWeight(.medium)
-
-            Text("·")
-                .foregroundColor(.secondary)
-                .font(AppFont.caption())
-
-            Text(source)
-                .font(AppFont.caption())
-                .foregroundColor(.secondary)
-
-            Spacer()
-
-            Text(timeAgo(publishedAt))
-                .font(AppFont.caption())
-                .foregroundColor(.secondary)
-        }
-        .padding(.horizontal, Spacing.lg)
-        .padding(.bottom, Spacing.lg)
-    }
-
-    private func timeAgo(_ date: Date) -> String {
-        let diff = Int(Date().timeIntervalSince(date))
-        if diff < 3600 { return "\(diff / 60)分钟前" }
-        if diff < 86400 { return "\(diff / 3600)小时前" }
-        return "\(diff / 86400)天前"
-    }
-}
-
-// MARK: - Preview
-
-#Preview("App 卡片") {
+#Preview {
     ScrollView {
-        AppCardView(
-            item: MockData.appItems[0],
-            subscriptionTitle: "小众设计感 App"
-        )
-        .padding()
+        AppCardView(card: AppData.mockCards["app-design"]!.compactMap {
+            if case .app(let a) = $0.content { return a } else { return nil }
+        }.first!)
+        .padding(.vertical, 8)
     }
-    .background(Color(.systemGroupedBackground))
-}
-
-// MARK: - App Card Compact (for mixed feed)
-
-struct AppCardCompact: View {
-    let item: FeedItem
-    let subscriptionTitle: String
-
-    private var app: AppContent? {
-        if case .app(let a) = item.content { return a }
-        return nil
-    }
-
-    var body: some View {
-        guard let app = app else { return AnyView(EmptyView()) }
-        return AnyView(
-            HStack(spacing: Spacing.md) {
-                AppIconPlaceholder(name: app.name, color: .appPrimary)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(app.name)
-                        .font(AppFont.headline())
-                        .lineLimit(1)
-                    Text(app.description)
-                        .font(AppFont.subheadline())
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                    HStack {
-                        StarRatingView(rating: app.rating)
-                        Text(String(format: "%.1f", app.rating))
-                            .font(AppFont.caption2())
-                            .foregroundColor(Color(hex: "#F59E0B"))
-                    }
-                }
-
-                Spacer()
-
-                VStack(spacing: 4) {
-                    Text(app.price)
-                        .font(AppFont.caption())
-                        .foregroundColor(.secondary)
-                    Button(action: {
-                        if let url = URL(string: app.appStoreURL) {
-                            UIApplication.shared.open(url)
-                        }
-                    }) {
-                        Text("获取")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.appPrimary)
-                            .frame(width: 60, height: 26)
-                            .background(Color.appPrimary.opacity(0.1))
-                            .clipShape(Capsule())
-                    }
-                }
-            }
-            .padding(Spacing.lg)
-            .background(Color.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.lg))
-            .cardShadow()
-        )
-    }
+    .background(Color(hex: "#F7F8FC"))
 }

@@ -1,41 +1,37 @@
 import SwiftUI
 import Combine
 
-// MARK: - App State
+class AppState: ObservableObject {
+    @Published var tab: Int = 0
+    @Published var subs: [UserSub] = []
+    @Published var cards: [FeedCard] = []
+    @Published var filter: String? = nil   // subKey
+    @Published var toast: String = ""
 
-class AppStore: ObservableObject {
-    @Published var subscriptions: [Subscription] = MockData.subscriptions
-    @Published var feedItems: [FeedItem] = MockData.allFeedItems
-    @Published var selectedTab: Int = 0
-    @Published var showCreateSubscription: Bool = false
-    @Published var newSubscriptionFromChat: Subscription? = nil
+    var filteredCards: [FeedCard] {
+        guard let f = filter else { return cards }
+        return cards.filter { $0.subKey == f }
+    }
 
-    // Filter
-    @Published var activeFilter: String? = nil  // nil = All
+    func addSub(_ template: SubTemplate) {
+        guard !subs.contains(where: { $0.template == template }) else { return }
+        let sub = UserSub(id: UUID(), template: template, addedAt: Date())
+        subs.insert(sub, at: 0)
+        let newCards = (AppData.mockCards[template.id] ?? [])
+        cards.insert(contentsOf: newCards, at: 0)
+        showToast("已添加「\(template.name)」订阅 ✓")
+    }
 
-    var filteredFeedItems: [FeedItem] {
-        guard let filter = activeFilter,
-              let sub = subscriptions.first(where: { $0.title == filter }) else {
-            return feedItems
+    func removeSub(_ sub: UserSub) {
+        subs.removeAll { $0.id == sub.id }
+        cards.removeAll { $0.subKey == sub.template.id }
+        if filter == sub.template.id { filter = nil }
+    }
+
+    func showToast(_ msg: String) {
+        toast = msg
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
+            if self.toast == msg { self.toast = "" }
         }
-        return feedItems.filter { $0.subscriptionId == sub.id }
-    }
-
-    func addSubscription(_ sub: Subscription) {
-        subscriptions.insert(sub, at: 0)
-        // Simulate fetching items for new subscription
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            self.generateMockItemsForSubscription(sub)
-        }
-    }
-
-    func removeSubscription(_ sub: Subscription) {
-        subscriptions.removeAll { $0.id == sub.id }
-        feedItems.removeAll { $0.subscriptionId == sub.id }
-    }
-
-    private func generateMockItemsForSubscription(_ sub: Subscription) {
-        // In real app, this calls backend API
-        // For demo, we just note it was added
     }
 }

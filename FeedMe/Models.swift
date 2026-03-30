@@ -197,6 +197,20 @@ struct AppData {
         ],
     ]
 
+    // MARK: - Default (pre-seeded) data
+
+    static let defaultSubs: [UserSub] = [
+        UserSub(id: UUID(), template: templates[0], addedAt: Date()),
+        UserSub(id: UUID(), template: templates[1], addedAt: Date()),
+    ]
+
+    static let defaultCards: [FeedCard] = {
+        var all: [FeedCard] = []
+        all += mockCards["app-design"] ?? []
+        all += mockCards["events-shenzhen"] ?? []
+        return all
+    }()
+
     // MARK: - Intent Parser
     static func parseIntent(_ text: String) -> SubTemplate? {
         let t = text.lowercased()

@@ -3,8 +3,8 @@ import Combine
 
 class AppState: ObservableObject {
     @Published var tab: Int = 0
-    @Published var subs: [UserSub] = []
-    @Published var cards: [FeedCard] = []
+    @Published var subs: [UserSub] = AppData.defaultSubs
+    @Published var cards: [FeedCard] = AppData.defaultCards
     @Published var filter: String? = nil   // subKey
     @Published var toast: String = ""
 

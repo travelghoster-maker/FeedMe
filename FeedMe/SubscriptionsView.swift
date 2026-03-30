@@ -51,7 +51,7 @@ struct SubscriptionsView: View {
                     }
                 }
 
-                Color.clear.frame(height: 20)
+                Color.clear.frame(height: 110)
             }
         }
         .background(Color(hex: "#F7F8FC"))

@@ -36,7 +36,7 @@ struct ChatView: View {
                                 .padding(.bottom, 10)
                                 .id("typing")
                         }
-                        Color.clear.frame(height: 1).id("bottom")
+                        Color.clear.frame(height: 110).id("bottom")
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 16)

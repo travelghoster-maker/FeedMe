@@ -9,7 +9,7 @@ struct HomeView: View {
                 headerSection
                 if !state.subs.isEmpty { filterSection }
                 cardSection
-                Color.clear.frame(height: 16)
+                Color.clear.frame(height: 110)
             }
         }
         .background(Color.clear)
